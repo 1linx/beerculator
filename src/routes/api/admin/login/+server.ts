@@ -1,12 +1,11 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME!;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD!;
+import { env } from '$env/dynamic/private';
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
 	const { username, password } = await request.json();
 
-	if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+	if (username === env.ADMIN_USERNAME && password === env.ADMIN_PASSWORD) {
 		cookies.set('admin_session', 'authenticated', {
 			path: '/',
 			httpOnly: true,

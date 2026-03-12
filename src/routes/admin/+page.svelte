@@ -170,7 +170,7 @@
 </script>
 
 <svelte:head>
-	<title>Admin — Beerculator 2000</title>
+	<title>Admin — Beerculator2000</title>
 </svelte:head>
 
 <header>
@@ -391,7 +391,7 @@
 	}
 
 	h1 {
-		font-family: 'devandra', sans-serif;
+		font-family: 'Paranoid Orange', sans-serif;
 		font-size: 1.8rem;
 		color: #f5a623;
 	}

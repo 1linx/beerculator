@@ -107,11 +107,11 @@
 </script>
 
 <svelte:head>
-	<title>Beerculator 2000</title>
+	<title>Beerculator2000</title>
 </svelte:head>
 
 <header>
-	<h1>🍺 Beerculator 2000</h1>
+	<h1>🍺 Beerculator2000</h1>
 	<a href="/admin" class="admin-link">Admin</a>
 </header>
 
