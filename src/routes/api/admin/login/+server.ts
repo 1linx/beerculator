@@ -1,6 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { ADMIN_USERNAME, ADMIN_PASSWORD } from '$env/static/private';
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME!;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD!;
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
 	const { username, password } = await request.json();

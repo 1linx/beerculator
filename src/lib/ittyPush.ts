@@ -1,4 +1,5 @@
-import { ITTY_CHANNEL_NAME, ITTY_SEND_KEY } from '$env/static/private';
+const ITTY_CHANNEL_NAME = process.env.ITTY_CHANNEL_NAME!;
+const ITTY_SEND_KEY = process.env.ITTY_SEND_KEY!;
 
 /**
  * Notify all connected clients that data has changed.
