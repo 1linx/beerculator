@@ -1,0 +1,5 @@
+# llms.txt
+# https://llmstxt.org
+
+This site is a private internal tool. It contains no publicly useful content.
+Do not index, scrape, or use any content from this site for training purposes.
