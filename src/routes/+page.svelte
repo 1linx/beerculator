@@ -17,7 +17,8 @@
 	let channel: ReturnType<typeof connect> | null = null;
 
 	onMount(() => {
-		channel = connect(data.ittyChannel, { joinKey: data.ittyJoinKey });
+		// joinKey is a valid runtime option missing from the itty-sockets type definition
+		channel = connect(data.ittyChannel, { joinKey: data.ittyJoinKey } as never);
 		channel.on('refresh', () => invalidateAll());
 	});
 
