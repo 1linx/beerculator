@@ -44,11 +44,15 @@ export function rationalize(debts: BeerDebt[]): RationalizeResult {
 		for (const a of userList) {
 			for (const b of userList) {
 				if (a === b) continue;
-				const ab = map.get(key(a, b)) ?? 0;
-				if (ab === 0) continue;
 
 				for (const c of userList) {
 					if (c === a || c === b) continue;
+
+					// Re-read A→B each iteration: it shrinks as we collapse it
+					// against successive creditors of B. Capturing it once would
+					// over-credit A→C and create phantom debt.
+					const ab = map.get(key(a, b)) ?? 0;
+					if (ab === 0) break; // A→B exhausted; move to next b
 					const bc = map.get(key(b, c)) ?? 0;
 					if (bc === 0) continue;
 
