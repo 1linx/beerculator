@@ -26,6 +26,29 @@ vite.config.ts.timestamp-*
 ecosystem.config.cjs
 ecosystem.config.js
 
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Testing / coverage
+/coverage
+.nyc_output
+
+# Editor / IDE
+.idea
+*.swp
+*.swo
+*~
+
+# Misc
+*.tgz
+.cache
+tmp/
+*.tmp
+
 # Claude things
 /instructions
 CLAUDE.md
