@@ -22,8 +22,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 		return new Response('Forbidden', { status: 403 });
 	}
 
-	// Site-wide auth barrier — allow through only the auth page and its API
-	if (path !== '/auth' && !path.startsWith('/api/auth')) {
+	// Site-wide auth barrier — allow through only the auth page, its API, and the health check
+	if (path !== '/auth' && path !== '/health' && !path.startsWith('/api/auth')) {
 		const siteAuth = event.cookies.get('site_auth');
 		if (siteAuth !== 'authenticated') {
 			throw redirect(302, '/auth');
