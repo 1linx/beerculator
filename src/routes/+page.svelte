@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import type { User, BeerDebt } from '$lib/supabase';
+	import type { User, BeerDebt } from '$lib/types';
 	import { invalidateAll } from '$app/navigation';
 	import { onMount, onDestroy } from 'svelte';
 	import { connect } from 'itty-sockets';

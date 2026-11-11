@@ -1,4 +1,4 @@
-import type { BeerDebt } from './supabase';
+import type { BeerDebt } from './types';
 
 export type ChainCollapse = {
 	a: string; // debtor

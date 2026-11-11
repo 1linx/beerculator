@@ -1,17 +1,17 @@
 import type { PageServerLoad } from './$types';
-import { supabase } from '$lib/supabase';
+import { getDb } from '$lib/server/db';
+import type { User, BeerDebt } from '$lib/types';
 import { env } from '$env/dynamic/private';
 
 export const load: PageServerLoad = async ({ locals }) => {
-	const [{ data: users }, { data: debts }] = await Promise.all([
-		supabase.from('users').select('*').order('name'),
-		supabase.from('beer_debts').select('*')
-	]);
+	const db = getDb();
+	const users = db.prepare('SELECT * FROM users ORDER BY name COLLATE NOCASE').all() as User[];
+	const debts = db.prepare('SELECT * FROM beer_debts').all() as BeerDebt[];
 
 	return {
 		isAdmin: locals.isAdmin,
-		users: users ?? [],
-		debts: debts ?? [],
+		users,
+		debts,
 		ittyChannel: env.ITTY_CHANNEL_NAME,
 		ittyJoinKey: env.ITTY_JOIN_KEY
 	};

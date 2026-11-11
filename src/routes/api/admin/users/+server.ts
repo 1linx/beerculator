@@ -1,6 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { supabase } from '$lib/supabase';
+import { getDb, newId, now } from '$lib/server/db';
+import type { User } from '$lib/types';
 import { pushRefresh } from '$lib/ittyPush';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -9,15 +10,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const { name } = await request.json();
 	if (!name?.trim()) throw error(400, 'Name required');
 
-	const { data, error: err } = await supabase
-		.from('users')
-		.insert({ name: name.trim() })
-		.select()
-		.single();
+	let user: User;
+	try {
+		user = getDb()
+			.prepare('INSERT INTO users (id, name, created_at) VALUES (?, ?, ?) RETURNING *')
+			.get(newId(), name.trim(), now()) as User;
+	} catch (err) {
+		throw error(500, (err as Error).message);
+	}
 
-	if (err) throw error(500, err.message);
 	await pushRefresh();
-	return json(data);
+	return json(user);
 };
 
 export const DELETE: RequestHandler = async ({ request, locals }) => {
@@ -26,8 +29,8 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 	const { id } = await request.json();
 	if (!id) throw error(400, 'ID required');
 
-	const { error: err } = await supabase.from('users').delete().eq('id', id);
-	if (err) throw error(500, err.message);
+	// beer_debts rows are removed via ON DELETE CASCADE
+	getDb().prepare('DELETE FROM users WHERE id = ?').run(id);
 	await pushRefresh();
 	return json({ ok: true });
 };

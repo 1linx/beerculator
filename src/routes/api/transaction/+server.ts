@@ -1,8 +1,8 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { supabase, logEvent } from '$lib/supabase';
+import { getDb, logEvent, newId, now } from '$lib/server/db';
 import { rationalize } from '$lib/rationalize';
-import type { BeerDebt, User } from '$lib/supabase';
+import type { BeerDebt, User } from '$lib/types';
 import { pushRefresh } from '$lib/ittyPush';
 
 // POST: buyer_id bought a beer for recipient_id → recipient owes buyer
@@ -13,23 +13,30 @@ export const POST: RequestHandler = async ({ request }) => {
 		throw error(400, 'Invalid request');
 	}
 
-	// Load users and current debts in parallel
-	const [{ data: users, error: usersErr }, { data: debts, error: loadErr }] = await Promise.all([
-		supabase.from('users').select('id, name'),
-		supabase.from('beer_debts').select('*')
-	]);
+	const db = getDb();
 
-	if (usersErr) throw error(500, usersErr.message);
-	if (loadErr) throw error(500, loadErr.message);
+	// The whole read → compute → write runs in one SQLite transaction, so concurrent
+	// drops can't interleave and a failure leaves no partial state.
+	try {
+		db.transaction(() => recordBeer(db, buyer_id, recipient_id))();
+	} catch (err) {
+		throw error(500, (err as Error).message);
+	}
 
-	const nameOf = (id: string) =>
-		(users as User[]).find((u) => u.id === id)?.name ?? id;
+	await pushRefresh();
+	return json({ ok: true });
+};
+
+function recordBeer(db: ReturnType<typeof getDb>, buyer_id: string, recipient_id: string) {
+	const users = db.prepare('SELECT id, name FROM users').all() as User[];
+	const current = db.prepare('SELECT id, debtor_id, creditor_id, amount FROM beer_debts').all() as BeerDebt[];
+
+	const nameOf = (id: string) => users.find((u) => u.id === id)?.name ?? id;
 
 	const buyer = nameOf(buyer_id);
 	const recipient = nameOf(recipient_id);
 
 	// Add 1 beer: recipient owes buyer
-	const current = (debts as BeerDebt[]) ?? [];
 	const existingIdx = current.findIndex(
 		(d) => d.debtor_id === recipient_id && d.creditor_id === buyer_id
 	);
@@ -41,7 +48,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 
 	// Log the transaction
-	await logEvent('transaction', `${buyer} bought ${recipient} a beer (${recipient} now owes ${buyer})`);
+	logEvent('transaction', `${buyer} bought ${recipient} a beer (${recipient} now owes ${buyer})`);
 
 	// Cancel any direct reverse debt (buyer owes recipient)
 	const reverseIdx = current.findIndex(
@@ -54,7 +61,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		if (cancel > 0) {
 			reverse.amount -= cancel;
 			forward.amount -= cancel;
-			await logEvent(
+			logEvent(
 				'cancellation',
 				`Debts cancelled: ${buyer} owed ${recipient} ${cancel} 🍺 — offset against ${recipient} owing ${buyer}`
 			);
@@ -66,39 +73,35 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	// Log each chain collapse
 	for (const { a, b, c, amount } of collapses) {
-		await logEvent(
+		logEvent(
 			'rationalization',
 			`Chain collapsed: ${nameOf(a)} → ${nameOf(b)} → ${nameOf(c)} (${amount} 🍺 redirected)`
 		);
 	}
 
-	// Persist and notify clients
-	await persistDebts(current, rationalized);
-	await pushRefresh();
+	persistDebts(db, current, rationalized);
+}
 
-	return json({ ok: true });
-};
-
-async function persistDebts(previous: BeerDebt[], next: BeerDebt[]) {
+function persistDebts(db: ReturnType<typeof getDb>, previous: BeerDebt[], next: BeerDebt[]) {
 	const nextKeys = new Set(next.map((d) => `${d.debtor_id}|${d.creditor_id}`));
+	const ts = now();
+
+	const del = db.prepare('DELETE FROM beer_debts WHERE id = ?');
+	const upd = db.prepare('UPDATE beer_debts SET amount = ?, updated_at = ? WHERE id = ?');
+	const ins = db.prepare(
+		`INSERT INTO beer_debts (id, debtor_id, creditor_id, amount, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?)
+		 ON CONFLICT (debtor_id, creditor_id)
+		 DO UPDATE SET amount = excluded.amount, updated_at = excluded.updated_at`
+	);
 
 	for (const d of previous) {
 		const k = `${d.debtor_id}|${d.creditor_id}`;
-		if (!nextKeys.has(k) && d.id) {
-			await supabase.from('beer_debts').delete().eq('id', d.id);
-		}
+		if (!nextKeys.has(k) && d.id) del.run(d.id);
 	}
 
 	for (const d of next) {
-		if (d.id) {
-			await supabase
-				.from('beer_debts')
-				.update({ amount: d.amount, updated_at: new Date().toISOString() })
-				.eq('id', d.id);
-		} else {
-			await supabase
-				.from('beer_debts')
-				.insert({ debtor_id: d.debtor_id, creditor_id: d.creditor_id, amount: d.amount });
-		}
+		if (d.id) upd.run(d.amount, ts, d.id);
+		else ins.run(newId(), d.debtor_id, d.creditor_id, d.amount, ts, ts);
 	}
 }

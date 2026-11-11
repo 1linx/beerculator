@@ -1,20 +1,16 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { supabase } from '$lib/supabase';
+import { getDb } from '$lib/server/db';
 
 // Health check for keep-alive service — no auth, no styling, just JSON.
 // Also confirms DB connectivity by fetching one recent log entry.
 export const GET: RequestHandler = async () => {
-	const { data, error: err } = await supabase
-		.from('beer_log')
-		.select('*')
-		.order('created_at', { ascending: false })
-		.limit(1)
-		.maybeSingle();
-
-	if (err) {
-		return json({ ok: false, db: false, error: err.message }, { status: 503 });
+	try {
+		const latest = getDb()
+			.prepare('SELECT * FROM beer_log ORDER BY created_at DESC, rowid DESC LIMIT 1')
+			.get();
+		return json({ ok: true, db: true, latest: latest ?? null });
+	} catch (err) {
+		return json({ ok: false, db: false, error: (err as Error).message }, { status: 503 });
 	}
-
-	return json({ ok: true, db: true, latest: data ?? null });
 };

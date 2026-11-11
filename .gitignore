@@ -52,3 +52,12 @@ tmp/
 # Claude things
 /instructions
 CLAUDE.md
+
+# SQLite database
+/data
+*.db
+*.db-wal
+*.db-shm
+
+# Claude
+.claude/
